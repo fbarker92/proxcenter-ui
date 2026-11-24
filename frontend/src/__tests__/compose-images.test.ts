@@ -35,7 +35,7 @@ function imageLines(text: string): string[] {
 describe('compose files are registry-overridable', () => {
   it.each(files)('%s has no hard-coded ghcr.io or docker.io image', file => {
     for (const line of imageLines(read(file))) {
-      expect(line, line).toMatch(/^image: \$\{(REGISTRY:-ghcr\.io\/adminsyspro|POSTGRES_IMAGE:-postgres:16-alpine)\}/)
+      expect(line, line).toMatch(/^image: \$\{(REGISTRY:-ghcr\.io\/fbarker92|POSTGRES_IMAGE:-postgres:16-alpine)\}/)
     }
   })
 
@@ -79,7 +79,7 @@ describe('compose files are registry-overridable', () => {
   it('every ${VERSION} image also carries the REGISTRY prefix', () => {
     for (const file of files) {
       for (const line of imageLines(read(file))) {
-        if (line.includes('${VERSION:-latest}')) expect(line).toContain('${REGISTRY:-ghcr.io/adminsyspro}/')
+        if (line.includes('${VERSION:-latest}')) expect(line).toContain('${REGISTRY:-ghcr.io/fbarker92}/')
       }
     }
   })

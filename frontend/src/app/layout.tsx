@@ -11,6 +11,9 @@ import { getLocale, getMessages } from 'next-intl/server'
 import { BrandingProvider } from '@/contexts/BrandingContext'
 import AuthProvider from '@components/AuthProvider'
 
+// Config Imports
+import { APP_VERSION, GIT_SHA } from '@/config/version'
+
 // Util Imports
 import { getSystemMode } from '@core/utils/serverHelpers'
 
@@ -41,7 +44,14 @@ const RootLayout = async (props: { children: ReactNode }) => {
   const direction = 'ltr'
 
   return (
-    <html id='__next' lang={locale} dir={direction} suppressHydrationWarning>
+    <html
+      id='__next'
+      lang={locale}
+      dir={direction}
+      data-app-version={APP_VERSION}
+      data-git-sha={GIT_SHA}
+      suppressHydrationWarning
+    >
       <body className='flex is-full min-bs-full flex-auto flex-col'>
         <InitColorSchemeScript attribute='data' defaultMode={systemMode} />
         <NextIntlClientProvider locale={locale} messages={messages}>

@@ -1,0 +1,46 @@
+name: Back-merge
+
+# A fix merged straight into main, rc or beta is missing from the stages below:
+# opens a pull request that carries it down one stage. Merging that one starts
+# the next. Promotions only add merge commits, which need no back-merge.
+on:
+  push:
+    branches: [beta, rc, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: back-merge
+
+jobs:
+  back-merge:
+    name: Open back-merge pull requests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Open what is missing
+        env:
+          GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          cp .github/scripts/open-merge-pr.sh "$RUNNER_TEMP/"
+          for pair in main:rc rc:beta beta:alpha; do
+            from=${pair%:*} to=${pair#*:}
+            for branch in "$from" "$to"; do
+              git rev-parse -q --verify "origin/$branch" >/dev/null || { echo "no $branch branch yet"; exit 0; }
+            done
+            missing=$(git log --no-merges --format='- %s' "origin/$to..origin/$from")
+            [ -n "$missing" ] || continue
+            [ -n "$GH_TOKEN" ] || { echo "::error::$to lacks commits of $from, and the AUTOMATION_TOKEN secret is not set (docs/RELEASING.md)"; exit 1; }
+            "$RUNNER_TEMP/open-merge-pr.sh" "$to" "$(git rev-parse "origin/$from")" "backmerge/$from-to-$to" \
+              "Back-merge $from into $to" "Commits of \`$from\` that \`$to\` lacks:
+
+          $missing"
+          done

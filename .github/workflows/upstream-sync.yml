@@ -1,0 +1,41 @@
+name: Upstream sync
+
+# Opens a pull request that merges upstream's main into alpha.
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: upstream-sync
+
+jobs:
+  sync:
+    name: Merge upstream into alpha
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: alpha
+          fetch-depth: 0
+
+      - name: Open the pull request
+        env:
+          # Not GITHUB_TOKEN: its pull requests start no CI, and it may not
+          # push upstream's changes to workflow files.
+          GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN }}
+        run: |
+          [ -n "$GH_TOKEN" ] || { echo "::error::the AUTOMATION_TOKEN secret is not set (docs/RELEASING.md)"; exit 1; }
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          # Never upstream's tags: they are not releases of this fork.
+          git fetch -q --no-tags https://github.com/adminsyspro/proxcenter-ui.git main
+          upstream=$(git rev-parse FETCH_HEAD)
+          cp .github/scripts/open-merge-pr.sh "$RUNNER_TEMP/"
+          "$RUNNER_TEMP/open-merge-pr.sh" alpha "$upstream" sync/upstream "Merge upstream (${upstream:0:8})" \
+            "Upstream's \`main\` at adminsyspro/proxcenter-ui@$upstream. Labelled release:patch: raise it if upstream added features." \
+            release:patch

@@ -27,7 +27,7 @@ set -Eeuo pipefail
 SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 INSTALL_DIR="/opt/proxcenter"
-RAW_BASE="https://raw.githubusercontent.com/adminsyspro/proxcenter-ui"
+RAW_BASE="https://raw.githubusercontent.com/fbarker92/proxcenter-ui"
 HEALTH_TIMEOUT=120
 LOG_FILE=""
 START_TIME=$(date +%s)
@@ -154,7 +154,7 @@ manifest_images() {
     grep -o '"name":[[:space:]]*"[^"]*"' "${1:-$SCRIPT_DIR/manifest.json}" | sed 's/.*"name":[[:space:]]*"\([^"]*\)"/\1/' || true
 }
 
-# image_basename ghcr.io/adminsyspro/proxcenter-frontend:1.4.11 -> proxcenter-frontend:1.4.11
+# image_basename ghcr.io/fbarker92/proxcenter-frontend:1.4.11 -> proxcenter-frontend:1.4.11
 image_basename() { echo "${1##*/}"; }
 
 # env_get KEY FILE: the value, with one pair of surrounding "..." or '...'
@@ -318,7 +318,7 @@ cmd_bundle() {
     # are pinned so an operator's shell (or a CI runner) exporting any of them
     # can't silently change which file or images get resolved and bundled.
     local images images_err="$work/compose-config.err"
-    if ! images=$(cd "$stage" && COMPOSE_FILE=docker-compose.yml REGISTRY=ghcr.io/adminsyspro POSTGRES_IMAGE=postgres:16-alpine \
+    if ! images=$(cd "$stage" && COMPOSE_FILE=docker-compose.yml REGISTRY=ghcr.io/fbarker92 POSTGRES_IMAGE=postgres:16-alpine \
             VERSION="$version" POSTGRES_PASSWORD=bundle APP_SECRET=bundle NEXTAUTH_SECRET=bundle ORCHESTRATOR_API_KEY=bundle \
             docker compose config --images 2>"$images_err" | sed '/^[[:space:]]*$/d' | sort -u); then
         log_error "docker compose config failed: $(tr '\n' ' ' < "$images_err")"
@@ -330,7 +330,7 @@ cmd_bundle() {
         # the per-node values the HA compose interpolates without a default
         # get throwaway ones so config does not warn about them.
         local ha_images ha_err="$work/compose-config-ha.err"
-        if ! ha_images=$(cd "$work" && COMPOSE_FILE=docker-compose.ha.yml REGISTRY=ghcr.io/adminsyspro VERSION="$version" \
+        if ! ha_images=$(cd "$work" && COMPOSE_FILE=docker-compose.ha.yml REGISTRY=ghcr.io/fbarker92 VERSION="$version" \
                 POSTGRES_PASSWORD=bundle APP_SECRET=bundle NEXTAUTH_SECRET=bundle ORCHESTRATOR_API_KEY=bundle \
                 NODE_NAME=bundle NODE_IP=127.0.0.1 VIP=127.0.0.1 PEER1_IP=127.0.0.1 PEER2_IP=127.0.0.1 PEER3_IP=127.0.0.1 \
                 docker compose -f docker-compose.ha.yml config --images 2>"$ha_err" | sed '/^[[:space:]]*$/d' | sort -u); then

@@ -1,0 +1,9 @@
+# Upstream files this fork deleted. The upstream sync keeps them deleted.
+.github/workflows/docker-publish.yml
+.github/workflows/sonarcloud.yml
+.github/workflows/lint.yml
+.github/workflows/security-scan.yml
+.github/scripts/check-staging-inputs.sh
+frontend/src/__tests__/docker-publish-bundle.test.ts
+frontend/src/__tests__/docker-publish-dispatch-guard.test.ts
+release.sh

@@ -8,7 +8,7 @@ services:
   # Frontend (Next.js + WebSocket Proxy)
   # ========================================
   frontend:
-    image: ${REGISTRY:-ghcr.io/adminsyspro}/proxcenter-frontend:${VERSION:-latest}
+    image: ${REGISTRY:-ghcr.io/fbarker92}/proxcenter-frontend:${VERSION:-latest}
     container_name: proxcenter-frontend
     restart: unless-stopped
     ports:
@@ -152,7 +152,7 @@ services:
   # Orchestrator (Go Backend)
   # ========================================
   orchestrator:
-    image: ${REGISTRY:-ghcr.io/adminsyspro}/proxcenter-orchestrator:${VERSION:-latest}
+    image: ${REGISTRY:-ghcr.io/fbarker92}/proxcenter-orchestrator:${VERSION:-latest}
     container_name: proxcenter-orchestrator
     restart: unless-stopped
     ports:
@@ -227,7 +227,7 @@ services:
   # into PDF documents. Built from `weasyprint/Dockerfile`. Without it, the
   # orchestrator boots fine but PDF generation is disabled.
   weasyprint:
-    image: ${REGISTRY:-ghcr.io/adminsyspro}/proxcenter-weasyprint:${VERSION:-latest}
+    image: ${REGISTRY:-ghcr.io/fbarker92}/proxcenter-weasyprint:${VERSION:-latest}
     # Uncomment to rebuild from source instead of pulling the pinned image
     # (useful when iterating on weasyprint/server.py or the Dockerfile).
     # build:

@@ -1,0 +1,8 @@
+# Releases an image CI has already built and tested: only metadata is added, so
+# nothing is compiled or run. Used by the release job of .github/workflows/ci.yml.
+ARG TESTED_IMAGE
+FROM ${TESTED_IMAGE}
+ARG VERSION
+ARG COMMIT
+ENV PROXCENTER_VERSION=$VERSION \
+    PROXCENTER_COMMIT=$COMMIT

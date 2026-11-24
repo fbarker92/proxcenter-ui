@@ -223,7 +223,7 @@ You need Node.js 22.12 or later, PostgreSQL 16 or later with an empty database, 
 ```bash
 VERSION=vX.Y.Z    # the release to install
 mkdir -p /opt/proxcenter && cd /opt/proxcenter
-curl -fsSL https://github.com/adminsyspro/proxcenter-ui/archive/refs/tags/$VERSION.tar.gz | tar xz --strip-components=1
+curl -fsSL https://github.com/fbarker92/proxcenter-ui/archive/refs/tags/$VERSION.tar.gz | tar xz --strip-components=1
 cd frontend
 
 npm ci --legacy-peer-deps --ignore-scripts

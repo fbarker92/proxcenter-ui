@@ -15,7 +15,7 @@
 services:
   # ── Layer 0: distributed consensus ──────────────────────────────
   etcd:
-    image: ${REGISTRY:-ghcr.io/adminsyspro}/etcd:v3.5.17
+    image: ${REGISTRY:-ghcr.io/fbarker92}/etcd:v3.5.17
     network_mode: host
     restart: unless-stopped
     volumes:
@@ -45,7 +45,7 @@ services:
 
   # ── Layer 1: Postgres managed by Patroni ────────────────────────
   patroni:
-    image: ${REGISTRY:-ghcr.io/adminsyspro}/proxcenter-patroni:${VERSION:-latest}
+    image: ${REGISTRY:-ghcr.io/fbarker92}/proxcenter-patroni:${VERSION:-latest}
     network_mode: host
     restart: unless-stopped
     # No extra privileges: Patroni runs as postgres and the default Docker
@@ -112,7 +112,7 @@ services:
 
   # ── Layer 2: local PG proxy ─────────────────────────────────────
   haproxy:
-    image: ${REGISTRY:-ghcr.io/adminsyspro}/haproxy:2.9-alpine
+    image: ${REGISTRY:-ghcr.io/fbarker92}/haproxy:2.9-alpine
     network_mode: host
     restart: unless-stopped
     # Root reads the 0640 root:70 TLS keys. Master-worker mode (-W) keeps a
@@ -133,7 +133,7 @@ services:
 
   # ── Layer 3: application ────────────────────────────────────────
   frontend:
-    image: ${REGISTRY:-ghcr.io/adminsyspro}/proxcenter-frontend:${VERSION:-latest}
+    image: ${REGISTRY:-ghcr.io/fbarker92}/proxcenter-frontend:${VERSION:-latest}
     network_mode: host
     restart: unless-stopped
     volumes:
@@ -229,7 +229,7 @@ services:
         condition: service_started
 
   orchestrator:
-    image: ${REGISTRY:-ghcr.io/adminsyspro}/proxcenter-orchestrator:${VERSION:-latest}
+    image: ${REGISTRY:-ghcr.io/fbarker92}/proxcenter-orchestrator:${VERSION:-latest}
     network_mode: host
     restart: unless-stopped
     volumes:
@@ -280,14 +280,14 @@ services:
         condition: service_healthy
 
   weasyprint:
-    image: ${REGISTRY:-ghcr.io/adminsyspro}/proxcenter-weasyprint:${VERSION:-latest}
+    image: ${REGISTRY:-ghcr.io/fbarker92}/proxcenter-weasyprint:${VERSION:-latest}
     restart: unless-stopped
     ports:
       - "127.0.0.1:5000:5000"
 
   # ── Layer 4: VIP management ──────────────────────────────────────
   keepalived:
-    image: ${REGISTRY:-ghcr.io/adminsyspro}/proxcenter-keepalived:${VERSION:-latest}
+    image: ${REGISTRY:-ghcr.io/fbarker92}/proxcenter-keepalived:${VERSION:-latest}
     network_mode: host
     restart: unless-stopped
     cap_add:

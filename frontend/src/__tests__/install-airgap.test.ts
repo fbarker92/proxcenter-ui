@@ -36,9 +36,9 @@ describe('bundle', () => {
     const argv = sb.argv()
     const config = argv.find(a => a.includes('compose') && a.includes('config --images'))
     expect(config).toBeDefined()
-    expect(argv).toContain('docker pull ghcr.io/adminsyspro/proxcenter-frontend:1.4.10')
+    expect(argv).toContain('docker pull ghcr.io/fbarker92/proxcenter-frontend:1.4.10')
     expect(argv).toContain('docker pull postgres:16-alpine')
-    expect(argv.some(a => a.startsWith('docker save ghcr.io/adminsyspro/proxcenter-frontend:1.4.10 postgres:16-alpine -o '))).toBe(true)
+    expect(argv.some(a => a.startsWith('docker save ghcr.io/fbarker92/proxcenter-frontend:1.4.10 postgres:16-alpine -o '))).toBe(true)
     // no curl: --compose was given
     expect(argv.some(a => a.startsWith('curl'))).toBe(false)
 
@@ -65,7 +65,7 @@ describe('bundle', () => {
     expect(spawnSync('sha256sum', ['-c', 'SHA256SUMS'], { cwd: bdir }).status).toBe(0)
     const manifest = JSON.parse(readFileSync(join(bdir, 'manifest.json'), 'utf8'))
     expect(manifest).toMatchObject({ schema: 1, edition: 'community', version: '1.4.10', compose: 'docker-compose.community.yml' })
-    expect(manifest.images.map((i: any) => i.name)).toEqual(['ghcr.io/adminsyspro/proxcenter-frontend:1.4.10', 'postgres:16-alpine'])
+    expect(manifest.images.map((i: any) => i.name)).toEqual(['ghcr.io/fbarker92/proxcenter-frontend:1.4.10', 'postgres:16-alpine'])
     expect(manifest.images[0].digest).toMatch(/^sha256:[0-9a-f]{64}$/)
     expect(readFileSync(join(bdir, 'install-airgap.sh'), 'utf8')).toBe(readFileSync(SCRIPT, 'utf8'))
     const readme = readFileSync(join(bdir, 'README.txt'), 'utf8')
@@ -79,17 +79,17 @@ describe('bundle', () => {
     mkdirSync(out)
     const r = runAirgap(sb, ['bundle', '--edition', 'enterprise', '--version', '1.4.10', '--output', out], sb.dir)
     expect(r.status, r.stdout + r.stderr).toBe(0)
-    expect(sb.argv().some(a => a.includes('https://raw.githubusercontent.com/adminsyspro/proxcenter-ui/v1.4.10/docker-compose.enterprise.yml'))).toBe(true)
-    expect(sb.argv().some(a => a.includes('https://raw.githubusercontent.com/adminsyspro/proxcenter-ui/v1.4.10/docker-compose.ha.yml'))).toBe(true)
+    expect(sb.argv().some(a => a.includes('https://raw.githubusercontent.com/fbarker92/proxcenter-ui/v1.4.10/docker-compose.enterprise.yml'))).toBe(true)
+    expect(sb.argv().some(a => a.includes('https://raw.githubusercontent.com/fbarker92/proxcenter-ui/v1.4.10/docker-compose.ha.yml'))).toBe(true)
   })
 
   it('enterprise also packs the HA images of docker-compose.ha.yml in the same images.tar and manifest', () => {
     const out = join(sb.dir, 'dist')
     mkdirSync(out)
     const editionImages = [
-      'ghcr.io/adminsyspro/proxcenter-frontend:1.4.10',
-      'ghcr.io/adminsyspro/proxcenter-orchestrator:1.4.10',
-      'ghcr.io/adminsyspro/proxcenter-weasyprint:1.4.10',
+      'ghcr.io/fbarker92/proxcenter-frontend:1.4.10',
+      'ghcr.io/fbarker92/proxcenter-orchestrator:1.4.10',
+      'ghcr.io/fbarker92/proxcenter-weasyprint:1.4.10',
       'postgres:16-alpine',
     ]
     const r = runAirgap(
@@ -104,14 +104,14 @@ describe('bundle', () => {
 
     const argv = sb.argv()
     // Pinned like the edition compose: an exported REGISTRY/VERSION is ignored.
-    expect(argv).toContain('compose config -f docker-compose.ha.yml env COMPOSE_FILE=docker-compose.ha.yml REGISTRY=ghcr.io/adminsyspro VERSION=1.4.10')
+    expect(argv).toContain('compose config -f docker-compose.ha.yml env COMPOSE_FILE=docker-compose.ha.yml REGISTRY=ghcr.io/fbarker92 VERSION=1.4.10')
     expect(argv.some(a => a.startsWith('curl'))).toBe(false)
 
     const ha = [
-      'ghcr.io/adminsyspro/etcd:v3.5.17',
-      'ghcr.io/adminsyspro/haproxy:2.9-alpine',
-      'ghcr.io/adminsyspro/proxcenter-keepalived:1.4.10',
-      'ghcr.io/adminsyspro/proxcenter-patroni:1.4.10',
+      'ghcr.io/fbarker92/etcd:v3.5.17',
+      'ghcr.io/fbarker92/haproxy:2.9-alpine',
+      'ghcr.io/fbarker92/proxcenter-keepalived:1.4.10',
+      'ghcr.io/fbarker92/proxcenter-patroni:1.4.10',
     ]
     const all = [...new Set([...editionImages, ...ha])].sort()
     expect(argv.some(a => a.startsWith(`docker save ${all.join(' ')} -o `)), argv.join('\n')).toBe(true)
@@ -149,7 +149,7 @@ describe('bundle', () => {
     spawnSync('tar', ['xzf', join(out, 'proxcenter-community-1.4.10.tar.gz'), '-C', extract])
     const bdir = join(extract, 'proxcenter-community-1.4.10')
     const names = JSON.parse(readFileSync(join(bdir, 'manifest.json'), 'utf8')).images.map((i: any) => i.name)
-    expect(names).toEqual(['ghcr.io/adminsyspro/proxcenter-frontend:1.4.10', 'postgres:16-alpine'])
+    expect(names).toEqual(['ghcr.io/fbarker92/proxcenter-frontend:1.4.10', 'postgres:16-alpine'])
     expect(readFileSync(join(bdir, 'README.txt'), 'utf8')).not.toContain('install-airgap.sh load')
   })
 
@@ -200,7 +200,7 @@ describe('bundle', () => {
       { COMPOSE_FILE: '/etc/should-not-be-used.yml', REGISTRY: 'evil.example.com', POSTGRES_IMAGE: 'evil:latest' },
     )
     expect(r.status, r.stdout + r.stderr).toBe(0)
-    expect(sb.argv()).toContain('compose config env COMPOSE_FILE=docker-compose.yml REGISTRY=ghcr.io/adminsyspro POSTGRES_IMAGE=postgres:16-alpine')
+    expect(sb.argv()).toContain('compose config env COMPOSE_FILE=docker-compose.yml REGISTRY=ghcr.io/fbarker92 POSTGRES_IMAGE=postgres:16-alpine')
   })
 
   it('packs images already present locally with --no-pull, skipping docker pull', () => {
@@ -241,7 +241,7 @@ describe('install', () => {
     expect(loadIdx).toBeGreaterThan(-1)
     expect(argv[loadIdx]).toBe(`docker load -i ${join(bdir, 'images.tar')}`)
     for (const v of ['proxcenter_data', 'orchestrator_data', 'postgres_data']) expect(argv).toContain(`docker volume create ${v}`)
-    expect(argv.some(a => a.startsWith('docker run --rm --user root --entrypoint  -v proxcenter_data:/app/data ghcr.io/adminsyspro/proxcenter-frontend:1.4.10'))).toBe(true)
+    expect(argv.some(a => a.startsWith('docker run --rm --user root --entrypoint  -v proxcenter_data:/app/data ghcr.io/fbarker92/proxcenter-frontend:1.4.10'))).toBe(true)
     expect(argv).toContain('docker compose up -d')
     // Both health probes read the compose healthcheck: install needs no curl.
     expect(argv.some(a => a.startsWith('docker inspect') && a.includes('proxcenter-frontend'))).toBe(true)
@@ -298,7 +298,7 @@ describe('install', () => {
     expect(copyLine).toContain('-v orchestrator_data:/app/data ')
     expect(copyLine).not.toContain('/tmp/license.key')
     expect(copyLine).not.toContain(keyPath)
-    expect(copyLine).toContain('ghcr.io/adminsyspro/proxcenter-orchestrator:1.4.10')
+    expect(copyLine).toContain('ghcr.io/fbarker92/proxcenter-orchestrator:1.4.10')
     expect(copyLine).toContain('cat > /app/data/license.key')
     expect(readFileSync(`${sb.argvLog}.stdin`, 'utf8')).toBe(readFileSync(keyPath, 'utf8'))
 
@@ -486,7 +486,7 @@ describe('install', () => {
     const r = runAirgap(sb, ['install', '--install-dir', sb.installDir, '--registry', 'harbor.lan/proxcenter/', '--health-timeout', '5'], bdir)
     expect(r.status, r.stdout + r.stderr).toBe(0)
     const argv = sb.argv()
-    expect(argv).toContain('docker tag ghcr.io/adminsyspro/proxcenter-frontend:1.4.10 harbor.lan/proxcenter/proxcenter-frontend:1.4.10')
+    expect(argv).toContain('docker tag ghcr.io/fbarker92/proxcenter-frontend:1.4.10 harbor.lan/proxcenter/proxcenter-frontend:1.4.10')
     expect(argv).toContain('docker push harbor.lan/proxcenter/proxcenter-frontend:1.4.10')
     expect(argv).toContain('docker tag postgres:16-alpine harbor.lan/proxcenter/postgres:16-alpine')
     const env = readEnvFile(join(sb.installDir, '.env'))
@@ -706,9 +706,9 @@ describe('upgrade', () => {
 describe('load (HA nodes 2 and 3)', () => {
   it('verifies the checksums and loads every manifest image, installing nothing', () => {
     const images = [
-      'ghcr.io/adminsyspro/etcd:v3.5.17',
-      'ghcr.io/adminsyspro/proxcenter-frontend:1.4.10',
-      'ghcr.io/adminsyspro/proxcenter-patroni:1.4.10',
+      'ghcr.io/fbarker92/etcd:v3.5.17',
+      'ghcr.io/fbarker92/proxcenter-frontend:1.4.10',
+      'ghcr.io/fbarker92/proxcenter-patroni:1.4.10',
       'postgres:16-alpine',
     ]
     const bdir = makeFakeBundle(sb, { edition: 'enterprise', version: '1.4.10', images })
@@ -757,19 +757,19 @@ describe('round trip', () => {
     writeFileSync(compose, [
       'services:',
       '  frontend:',
-      '    image: ${REGISTRY:-ghcr.io/adminsyspro}/proxcenter-frontend:${VERSION:-latest}',
+      '    image: ${REGISTRY:-ghcr.io/fbarker92}/proxcenter-frontend:${VERSION:-latest}',
       '  orchestrator:',
-      '    image: ${REGISTRY:-ghcr.io/adminsyspro}/proxcenter-orchestrator:${VERSION:-latest}',
+      '    image: ${REGISTRY:-ghcr.io/fbarker92}/proxcenter-orchestrator:${VERSION:-latest}',
       '  weasyprint:',
-      '    image: ${REGISTRY:-ghcr.io/adminsyspro}/proxcenter-weasyprint:${VERSION:-latest}',
+      '    image: ${REGISTRY:-ghcr.io/fbarker92}/proxcenter-weasyprint:${VERSION:-latest}',
       '  postgres:',
       '    image: ${POSTGRES_IMAGE:-postgres:16-alpine}',
       '',
     ].join('\n'))
     const fakeImages = [
-      'ghcr.io/adminsyspro/proxcenter-frontend:1.4.10',
-      'ghcr.io/adminsyspro/proxcenter-orchestrator:1.4.10',
-      'ghcr.io/adminsyspro/proxcenter-weasyprint:1.4.10',
+      'ghcr.io/fbarker92/proxcenter-frontend:1.4.10',
+      'ghcr.io/fbarker92/proxcenter-orchestrator:1.4.10',
+      'ghcr.io/fbarker92/proxcenter-weasyprint:1.4.10',
       'postgres:16-alpine',
     ]
     const out = join(sb.dir, 'dist')
@@ -796,7 +796,7 @@ describe('round trip', () => {
     expect(argv).toContain(`docker load -i ${join(bdir, 'images.tar')}`)
     for (const img of fakeImages) expect(argv, img).toContain(`docker image inspect ${img}`)
     expect(argv.some(a => a.startsWith(
-      'docker run --rm --user root --entrypoint  -v proxcenter_data:/app/data ghcr.io/adminsyspro/proxcenter-frontend:1.4.10 sh -c',
+      'docker run --rm --user root --entrypoint  -v proxcenter_data:/app/data ghcr.io/fbarker92/proxcenter-frontend:1.4.10 sh -c',
     ))).toBe(true)
     // The bug: an empty frontend_image_of() left the image argument blank,
     // so the chown container ran against "" instead of the frontend image.

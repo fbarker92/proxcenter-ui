@@ -19,11 +19,11 @@ NC='\033[0m'
 
 # Configuration
 INSTALL_DIR="/opt/proxcenter"
-COMPOSE_URL="https://raw.githubusercontent.com/adminsyspro/proxcenter-ui/main/docker-compose.enterprise.yml"
+COMPOSE_URL="https://raw.githubusercontent.com/fbarker92/proxcenter-ui/main/docker-compose.enterprise.yml"
 REGISTRY="ghcr.io"
-REGISTRY_USER="adminsyspro"
-FRONTEND_IMAGE="ghcr.io/adminsyspro/proxcenter-frontend:latest"
-ORCHESTRATOR_IMAGE="ghcr.io/adminsyspro/proxcenter-orchestrator:latest"
+REGISTRY_USER="fbarker92"
+FRONTEND_IMAGE="ghcr.io/fbarker92/proxcenter-frontend:latest"
+ORCHESTRATOR_IMAGE="ghcr.io/fbarker92/proxcenter-orchestrator:latest"
 
 TOTAL_STEPS=6
 START_TIME=$(date +%s)
@@ -216,7 +216,7 @@ validate_token() {
     local http_code
     http_code=$(curl -s -o /dev/null -w "%{http_code}" \
         -H "Authorization: Bearer $GHCR_TOKEN" \
-        "https://ghcr.io/v2/adminsyspro/proxcenter-frontend/tags/list" 2>/dev/null || echo "000")
+        "https://ghcr.io/v2/fbarker92/proxcenter-frontend/tags/list" 2>/dev/null || echo "000")
 
     if [ "$http_code" = "200" ]; then
         log_success "Token validated"

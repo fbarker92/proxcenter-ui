@@ -1,0 +1,29 @@
+name: Clean up CI images
+
+# Deletes tested builds older than 30 days from the CI package. Released images
+# are in another package and stay; a merge of older code takes a full run.
+on:
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  prune:
+    name: Delete CI images older than 30 days
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSIONS: /users/${{ github.repository_owner }}/packages/container/proxcenter-frontend-ci/versions
+    steps:
+      - run: |
+          old='.[] | select((.created_at | fromdateiso8601) < now - 30 * 86400) | .id'
+          ids=$(gh api --paginate "$VERSIONS" --jq "$old")
+          deleted=0
+          for id in $ids; do
+            gh api -X DELETE "$VERSIONS/$id" >/dev/null && deleted=$((deleted + 1))
+          done
+          echo "deleted $deleted CI image version(s)"
