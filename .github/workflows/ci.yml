@@ -1,0 +1,395 @@
+name: CI
+
+# Pull request: lint, tests and the image, in parallel, on the merge GitHub
+# previews. Once all pass, the image is stored in the CI package under the git
+# *tree* it was built from.
+#
+# Push to alpha, beta, rc or main (a merged pull request): the merge has the
+# tree that was tested, so its image is released without testing or building
+# again. A tree CI never stored (the base moved, an outside contributor's pull
+# request, an image older than the clean-up) takes the full run first.
+#
+# Branches, labels and versions: docs/RELEASING.md.
+on:
+  pull_request:
+    branches: [alpha, beta, rc, main]
+  push:
+    branches: [alpha, beta, rc, main]
+
+permissions:
+  contents: read
+
+# A new push to a pull request supersedes its previous run. Releases of one
+# branch queue, so two merges never compute the same version.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/proxcenter-frontend
+  CI_IMAGE: ghcr.io/${{ github.repository_owner }}/proxcenter-frontend-ci
+  # To add arm64: "linux/amd64,linux/arm64" here, and either QEMU (slow) or a
+  # native arm64 runner for the build. Everything downstream follows this list.
+  PLATFORMS: linux/amd64
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+      pull-requests: read
+    outputs:
+      tree: ${{ steps.tree.outputs.tree }}
+      reuse: ${{ steps.reuse.outputs.reuse }}
+      push: ${{ steps.reuse.outputs.push }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - id: tree
+        run: echo "tree=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Pull requests from forks and from Dependabot get a read-only token:
+      # they build without storing, and the merge takes the full run.
+      - id: reuse
+        env:
+          TREE: ${{ steps.tree.outputs.tree }}
+          CAN_PUSH: ${{ github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]') }}
+        run: |
+          echo "push=$CAN_PUSH" >> "$GITHUB_OUTPUT"
+          if docker buildx imagetools inspect "$CI_IMAGE:tree-$TREE" >/dev/null 2>&1; then
+            echo "reuse=true" >> "$GITHUB_OUTPUT"
+            echo "Tree \`$TREE\` was already tested: reusing its image." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "reuse=false" >> "$GITHUB_OUTPUT"
+            echo "Tree \`$TREE\` is new: full run." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - id: version
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          train=$GITHUB_REF_NAME
+          [ "$train" != main ] || train=stable
+          gh pr list --state merged --limit 1000 --json number,labels,mergeCommit,headRefName > "$RUNNER_TEMP/prs.json"
+          tag=$(.github/scripts/next-version.sh "$train" "$RUNNER_TEMP/prs.json")
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Release: ${tag:-none}" >> "$GITHUB_STEP_SUMMARY"
+
+  lint:
+    name: Lint and types
+    needs: plan
+    if: needs.plan.outputs.reuse != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Pipeline scripts
+        run: |
+          shellcheck .github/scripts/*.sh
+          .github/scripts/test.sh
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '26'
+          package-manager-cache: false
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci --legacy-peer-deps --ignore-scripts
+
+      - name: Generate Prisma client
+        # Only reads the schema, but needs DATABASE_URL to be defined.
+        working-directory: frontend
+        env:
+          DATABASE_URL: postgresql://user:pass@localhost:5432/db
+        run: npx prisma generate
+
+      - name: Build icon CSS
+        working-directory: frontend
+        run: npm run build:icons
+
+      - name: ESLint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Stylelint
+        working-directory: frontend
+        run: npm run lint:css
+
+      - name: Strict type check
+        working-directory: frontend
+        run: npm run typecheck:strict
+
+      - name: Console bundles match their sources
+        # The console pop-outs load committed bundles: rebuild them from the
+        # lockfile and fail when the committed files differ.
+        working-directory: frontend
+        run: |
+          npm run build:bundles
+          drift=$(git status --porcelain -- public/novnc public/xterm public/spice public/console)
+          if [ -n "$drift" ]; then
+            echo "$drift"
+            echo "::error::Committed console bundles differ from a rebuild: run npm run build:bundles and commit the result."
+            exit 1
+          fi
+
+      - name: Script unit tests
+        working-directory: frontend
+        run: npm run test:scripts
+
+  test:
+    name: Tests (${{ matrix.shard }}/4)
+    needs: plan
+    if: needs.plan.outputs.reuse != 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    # Some suites talk to a real Postgres through the vitest globalSetup.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: proxcenter
+          POSTGRES_PASSWORD: test-pass
+          POSTGRES_DB: proxcenter
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U proxcenter -d proxcenter"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '26'
+          package-manager-cache: false
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps --ignore-scripts
+
+      - name: Generate Prisma client
+        env:
+          DATABASE_URL: postgresql://proxcenter:test-pass@localhost:5432/proxcenter
+        run: npx prisma generate
+
+      - name: Install psql client
+        # The test globalSetup shells out to psql.
+        run: sudo apt-get install -y --no-install-recommends postgresql-client
+
+      - name: Run tests
+        env:
+          POSTGRES_TEST_URL_BASE: postgresql://proxcenter:test-pass@localhost:5432/proxcenter
+          SHARD: ${{ matrix.shard }}
+        run: npx vitest run --shard="$SHARD/4"
+
+  image:
+    name: Image
+    needs: plan
+    if: needs.plan.outputs.reuse != 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        if: needs.plan.outputs.push == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # build-<tree> only means "built": the gate adds tree-<tree> once every
+      # check passed. No version or commit goes in, the release stamps them.
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: ${{ needs.plan.outputs.push == 'true' }}
+          tags: ${{ env.CI_IMAGE }}:build-${{ needs.plan.outputs.tree }}
+          provenance: false
+          sbom: false
+
+      - name: Scan the image with Trivy
+        if: needs.plan.outputs.push == 'true'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.CI_IMAGE }}:build-${{ needs.plan.outputs.tree }}
+          format: sarif
+          output: trivy-frontend.sarif
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          limit-severities-for-sarif: true
+          vuln-type: os
+
+      - name: Report to GitHub Security
+        if: needs.plan.outputs.push == 'true'
+        uses: github/codeql-action/upload-sarif@1bd86f2fdb4b86187fa4059f16f31a3202acc9ea # v4.39.4
+        with:
+          sarif_file: trivy-frontend.sarif
+          category: trivy-frontend
+
+  # The required check. It passes when everything passed, or when this exact
+  # tree already did.
+  gate:
+    name: CI gate
+    needs: [plan, lint, test, image]
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    env:
+      REUSE: ${{ needs.plan.outputs.reuse }}
+      TREE: ${{ needs.plan.outputs.tree }}
+    steps:
+      - name: Check the results
+        env:
+          PLAN: ${{ needs.plan.result }}
+          LINT: ${{ needs.lint.result }}
+          TEST: ${{ needs.test.result }}
+          BUILD: ${{ needs.image.result }}
+        run: |
+          echo "plan $PLAN, reuse $REUSE, lint $LINT, test $TEST, image $BUILD"
+          [ "$PLAN" = success ] || exit 1
+          [ "$REUSE" = true ] || [ "$LINT $TEST $BUILD" = "success success success" ]
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        if: needs.plan.outputs.reuse != 'true' && needs.plan.outputs.push == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Mark the image as tested
+        if: needs.plan.outputs.reuse != 'true' && needs.plan.outputs.push == 'true'
+        run: docker buildx imagetools create --prefer-index=false -t "$CI_IMAGE:tree-$TREE" "$CI_IMAGE:build-$TREE"
+
+  release:
+    name: Release
+    needs: [plan, gate]
+    # A skipped job upstream (a reused tree) would otherwise skip this one too.
+    if: ${{ !cancelled() && github.event_name == 'push' && needs.gate.result == 'success' && needs.plan.outputs.tag != '' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    env:
+      TAG: ${{ needs.plan.outputs.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      #   v2.1.3         2.1.3, 2.1, 2, latest
+      #   v2.1.3-beta.4  2.1.3-beta.4, beta      (alpha and rc likewise)
+      - id: tags
+        run: |
+          version=${TAG#v}
+          case $version in
+            *-*) moving=${version#*-}; names="$version ${moving%%.*}" ;;
+            *) names="$version ${version%.*} ${version%%.*} latest" ;;
+          esac
+          {
+            echo "version=$version"
+            echo "moving=${names##* }"
+            echo "tags<<TAGS"
+            for name in $names; do echo "$IMAGE:$name"; done
+            echo "TAGS"
+          } >> "$GITHUB_OUTPUT"
+
+      - id: push
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .github/docker
+          file: .github/docker/Dockerfile.release
+          platforms: ${{ env.PLATFORMS }}
+          push: true
+          build-args: |
+            TESTED_IMAGE=${{ env.CI_IMAGE }}:tree-${{ needs.plan.outputs.tree }}
+            VERSION=${{ steps.tags.outputs.version }}
+            COMMIT=${{ github.sha }}
+          tags: ${{ steps.tags.outputs.tags }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.tags.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
+          provenance: false
+          sbom: false
+
+      - name: Attest build provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ env.IMAGE }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true
+          create-storage-record: false
+
+      # GITHUB_TOKEN may not tag a commit that changes workflow files, hence
+      # the automation token when there is one.
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.AUTOMATION_TOKEN || github.token }}
+          VERSION: ${{ steps.tags.outputs.version }}
+          MOVING: ${{ steps.tags.outputs.moving }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "$TAG is already released"
+            exit 0
+          fi
+          upstream=$(jq -r .version frontend/package.json)
+          # shellcheck disable=SC2016 # the backticks are Markdown
+          printf '```\n%s\n%s\n```\nBased on upstream ProxCenter %s.\n' \
+            "docker pull $IMAGE:$VERSION" "docker pull $IMAGE:$MOVING" "$upstream" > "$RUNNER_TEMP/notes.md"
+          flags=(--latest)
+          case $TAG in
+            *-*) flags=(--prerelease); train="^v[0-9.]+-$MOVING\." ;;
+            *) train='^v[0-9]+\.[0-9]+\.[0-9]+$' ;;
+          esac
+          previous=$(git tag --merged HEAD | { grep -E "$train" || true; } | sort -V | tail -n1)
+          [ -z "$previous" ] || flags+=(--notes-start-tag "$previous")
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" \
+            --notes-file "$RUNNER_TEMP/notes.md" --generate-notes "${flags[@]}"

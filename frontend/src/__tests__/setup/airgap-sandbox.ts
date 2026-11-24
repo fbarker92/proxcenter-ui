@@ -121,10 +121,10 @@ export function makeAirgapSandbox(): AirgapSandbox {
     PATH: `${bin}:${process.env.PATH ?? ''}`,
     HOME: dir,
     FAKE_ARGV_LOG: argvLog,
-    FAKE_IMAGES: 'ghcr.io/adminsyspro/proxcenter-frontend:1.4.10\npostgres:16-alpine',
+    FAKE_IMAGES: 'ghcr.io/fbarker92/proxcenter-frontend:1.4.10\npostgres:16-alpine',
     FAKE_RUNNING_SERVICES: 'frontend postgres',
     FAKE_DOCKER_ROOT: dir,
-    FAKE_COMPOSE_BODY: 'services:\n  frontend:\n    image: ${REGISTRY:-ghcr.io/adminsyspro}/proxcenter-frontend:${VERSION:-latest}\n',
+    FAKE_COMPOSE_BODY: 'services:\n  frontend:\n    image: ${REGISTRY:-ghcr.io/fbarker92}/proxcenter-frontend:${VERSION:-latest}\n',
     AIRGAP_ALLOW_NON_ROOT: '1',
     // load logs under /var/log by default, not writable without root.
     AIRGAP_LOAD_LOG: join(dir, 'log', 'proxcenter-airgap-load.log'),
@@ -180,8 +180,8 @@ export function makeFakeBundle(sb: AirgapSandbox, opts: FakeBundleOptions = {}):
   const edition = opts.edition ?? 'enterprise'
   const version = opts.version ?? '1.4.10'
   const images = opts.images ?? (edition === 'enterprise'
-    ? ['ghcr.io/adminsyspro/proxcenter-frontend:' + version, 'ghcr.io/adminsyspro/proxcenter-orchestrator:' + version, 'ghcr.io/adminsyspro/proxcenter-weasyprint:' + version, 'postgres:16-alpine']
-    : ['ghcr.io/adminsyspro/proxcenter-frontend:' + version, 'postgres:16-alpine'])
+    ? ['ghcr.io/fbarker92/proxcenter-frontend:' + version, 'ghcr.io/fbarker92/proxcenter-orchestrator:' + version, 'ghcr.io/fbarker92/proxcenter-weasyprint:' + version, 'postgres:16-alpine']
+    : ['ghcr.io/fbarker92/proxcenter-frontend:' + version, 'postgres:16-alpine'])
   const dir = join(sb.dir, `proxcenter-${edition}-${version}`)
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'install-airgap.sh'), readFileSync(SCRIPT))
@@ -191,8 +191,8 @@ export function makeFakeBundle(sb: AirgapSandbox, opts: FakeBundleOptions = {}):
   // is exercised against realistic shapes rather than a fixture that never
   // has the line either way.
   writeFileSync(join(dir, 'docker-compose.yml'), edition === 'enterprise'
-    ? `services:\n  frontend:\n    image: \${REGISTRY:-ghcr.io/adminsyspro}/proxcenter-frontend:\${VERSION:-latest}\n  orchestrator:\n    image: \${REGISTRY:-ghcr.io/adminsyspro}/proxcenter-orchestrator:\${VERSION:-latest}\n  postgres:\n    image: \${POSTGRES_IMAGE:-postgres:16-alpine}\n`
-    : `services:\n  frontend:\n    image: \${REGISTRY:-ghcr.io/adminsyspro}/proxcenter-frontend:\${VERSION:-latest}\n  postgres:\n    image: \${POSTGRES_IMAGE:-postgres:16-alpine}\n`)
+    ? `services:\n  frontend:\n    image: \${REGISTRY:-ghcr.io/fbarker92}/proxcenter-frontend:\${VERSION:-latest}\n  orchestrator:\n    image: \${REGISTRY:-ghcr.io/fbarker92}/proxcenter-orchestrator:\${VERSION:-latest}\n  postgres:\n    image: \${POSTGRES_IMAGE:-postgres:16-alpine}\n`
+    : `services:\n  frontend:\n    image: \${REGISTRY:-ghcr.io/fbarker92}/proxcenter-frontend:\${VERSION:-latest}\n  postgres:\n    image: \${POSTGRES_IMAGE:-postgres:16-alpine}\n`)
   writeFileSync(join(dir, 'images.tar'), 'fake docker archive\n')
   writeFileSync(join(dir, 'README.txt'), 'fake readme\n')
   // Built by hand, one image per line, the way cmd_bundle's own `entries`

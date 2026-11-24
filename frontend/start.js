@@ -372,8 +372,10 @@ async function main() {
 function printBanner() {
   let appVersion = 'latest'
   try { appVersion = require('./package.json').version } catch {}
+  // Set on release images (.github/docker/Dockerfile.release).
+  if (process.env.PROXCENTER_VERSION) appVersion = process.env.PROXCENTER_VERSION
 
-  const gitSha = process.env.GIT_SHA
+  const gitSha = process.env.PROXCENTER_COMMIT || process.env.GIT_SHA
   if (gitSha) appVersion += `-${gitSha.substring(0, 7)}`
 
   const edition = process.env.ORCHESTRATOR_URL ? 'Enterprise' : 'Community'

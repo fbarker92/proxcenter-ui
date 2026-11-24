@@ -19,8 +19,8 @@ NC='\033[0m'
 
 # Configuration
 INSTALL_DIR="/opt/proxcenter"
-COMPOSE_URL="https://raw.githubusercontent.com/adminsyspro/proxcenter-ui/main/docker-compose.community.yml"
-FRONTEND_IMAGE="ghcr.io/adminsyspro/proxcenter-frontend:latest"
+COMPOSE_URL="https://raw.githubusercontent.com/fbarker92/proxcenter-ui/main/docker-compose.community.yml"
+FRONTEND_IMAGE="ghcr.io/fbarker92/proxcenter-frontend:latest"
 
 TOTAL_STEPS=4
 START_TIME=$(date +%s)

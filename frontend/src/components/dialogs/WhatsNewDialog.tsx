@@ -30,7 +30,7 @@ import changelog from '@/data/changelog.json'
 import { useBranding } from '@/contexts/BrandingContext'
 
 const STORAGE_KEY = 'proxcenter_whats_new_seen'
-const RELEASES_URL = 'https://github.com/adminsyspro/proxcenter-ui/releases'
+const RELEASES_URL = 'https://github.com/fbarker92/proxcenter-ui/releases'
 // Older releases stay one click away through the GitHub link in the footer.
 const PREVIOUS_RELEASES_SHOWN = 5
 const UPGRADE_COMMAND = 'docker compose pull && docker compose up -d'

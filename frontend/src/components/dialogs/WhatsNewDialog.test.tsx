@@ -241,7 +241,7 @@ describe('WhatsNewDialog component', () => {
     renderWithProviders(<WhatsNewDialog open={true} onClose={vi.fn()} />)
 
     const link = screen.getByRole('link', { name: /All releases on GitHub/ })
-    expect(link).toHaveAttribute('href', 'https://github.com/adminsyspro/proxcenter-ui/releases')
+    expect(link).toHaveAttribute('href', 'https://github.com/fbarker92/proxcenter-ui/releases')
     expect(link).toHaveAttribute('target', '_blank')
     expect(link).toHaveAttribute('rel', 'noopener noreferrer')
   })

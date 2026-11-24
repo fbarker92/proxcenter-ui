@@ -9,11 +9,12 @@ import LoginAuthTabs from './LoginAuthTabs'
 import LoginCredentialsForm from './LoginCredentialsForm'
 import LoginSsoButton from './LoginSsoButton'
 import LoginFooter from './LoginFooter'
-import packageJson from '../../../package.json'
+import { APP_VERSION } from '@/config/version'
 
 import type { LoginFormPanelProps } from './types'
 
-const APP_VERSION = packageJson.version
+// "dev" and "staging" builds are not numbered: no "v" in front of them.
+const VERSION_LABEL = /^\d/.test(APP_VERSION) ? `v${APP_VERSION}` : APP_VERSION
 
 export default function LoginFormPanel({
   branding,
@@ -72,11 +73,11 @@ export default function LoginFormPanel({
                       underline='hover'
                       sx={{ fontSize: '0.7rem', color: '#e7eaf3', opacity: 0.45, fontWeight: 500, '&:hover': { opacity: 0.75 } }}
                     >
-                      v{APP_VERSION}
+                      {VERSION_LABEL}
                     </Link>
                   ) : (
                     <Typography component='span' sx={{ fontSize: '0.7rem', color: '#e7eaf3', opacity: 0.45, fontWeight: 500 }}>
-                      v{APP_VERSION}
+                      {VERSION_LABEL}
                     </Typography>
                   )
                 )}
